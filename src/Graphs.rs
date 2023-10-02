@@ -1,17 +1,18 @@
-use petgraph::graph::{DiGraph, NodeIndex};
+use petgraph::stable_graph::{StableDiGraph, NodeIndex, EdgeIndex};
+use petgraph::EdgeType;
 use std::fs;
 use std::io::{BufRead, BufReader};
 
-pub(crate) struct Info {
-    pub(crate) di_graph: DiGraph<i128, i128>,
+pub(crate) struct Utils {
+    pub(crate) di_graph: StableDiGraph<i128, i128>,
     pub(crate) remaining_vec: Vec<i128>,
-    pub(crate) costs_vec: Vec<i128>,
+    pub(crate) costs_vec: Vec<i128>
 }
 
-impl Info {
+impl Utils {
     pub fn new() -> Self {
         Self {
-            di_graph: DiGraph::<i128, i128>::new(),
+            di_graph: StableDiGraph::<i128, i128>::new(),
             remaining_vec: Vec::new(),
             costs_vec: Vec::new(),
         }
@@ -54,20 +55,20 @@ impl Info {
                                 self.di_graph.add_node(j);
                             }
                         } else {
-                            println!("Task: {}", i);
+                            //println!("Task: {}", i);
                             task = *i;
                             count += 1;
                         }
                     } else if count == 1 {
-                        println!("Cost: {}", i);
+                        //println!("Cost: {}", i);
                         self.costs_vec[task as usize] = *i;
                         count += 1;
                     } else if count == 2 {
-                        println!("Degree: {}", i);
+                        //println!("Degree: {}", i);
                         degree = *i;
                         count += 1;
                     } else {
-                        println!(" {}", i);
+                        //println!(" {}", i);
                         self.remaining_vec[task as usize] += 1;
                         self.di_graph.add_edge(
                             NodeIndex::new(*i as usize),
@@ -85,7 +86,9 @@ impl Info {
     }
 
     pub fn update_edge_weights(&mut self) {
-        for edge in self.di_graph.edge_indices() {
+        let edge_indices: Vec<EdgeIndex> = self.di_graph.edge_indices().collect();
+
+        for  edge in edge_indices {
             let (source, target) = self.di_graph.edge_endpoints(edge).unwrap();
             let target_index = target.index();
             if let Some(&weight) = self.costs_vec.get(target_index) {
@@ -118,6 +121,12 @@ impl Info {
                 "{}        \t {}       \t{}",
                 i, self.remaining_vec[i], self.costs_vec[i]
             );
+        }
+    }
+    pub fn print_remaining_vec(&self, n_tasks: usize) {
+        println!(" Remainig: :");
+        for i in 0..n_tasks {
+            println!(" {}",self.remaining_vec[i]);
         }
     }
 }
