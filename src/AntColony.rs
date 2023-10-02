@@ -20,17 +20,18 @@ impl Workers{
     pub fn reduce_neighbors(&mut self ,graph : &mut  StableDiGraph::<i128, i128> , remaining_vec : &mut  Vec::<i128>  , task: NodeIndex){
 
         let mut neighbors : Vec<i128> = Vec::new() ;
-        let index :i128 = task.index() as i128;
-        
+    
         for neighbor in graph.neighbors_directed( task, Direction::Outgoing) {
             let neighbor_index = graph[neighbor];
             neighbors.push(neighbor_index);
         }
         //println!("task : {} , neghbors :\n",index);
+
+        
+
         for i in neighbors{
             remaining_vec[i as usize] = remaining_vec[i as usize] -1;
             println!("reduced {}",i);
-            println!("remaining :");
             self.print_remaining_vec(&remaining_vec);
             if remaining_vec[i as usize] == 0 {
                 self.task_heap.push(i);
@@ -63,21 +64,21 @@ impl Workers{
         None
     }
 }
-    pub fn complete_task(&mut self, graph : &mut  StableDiGraph::<i128, i128> ,remaining_vec : &mut  Vec::<i128> , task: NodeIndex){
-
+    pub fn complete_task(&mut self, graph : &mut  StableDiGraph::<i128, i128> ,remaining_vec : &mut  Vec::<i128> ,costs_vec :  &Vec::<i128>, task: NodeIndex){
 
         self.reduce_neighbors(graph,remaining_vec ,task);
         self.remove_edges(graph, task);
+        self.time_spent += costs_vec[task.index() as usize];
         graph.remove_node(task);
     
     }
     
 
-    pub fn simple_greedy_ants(&mut self ,graph : &mut  StableDiGraph::<i128, i128>,remaining_vec : &mut  Vec::<i128> ){
+    pub fn simple_worker_ants(&mut self , graph : &mut  StableDiGraph::<i128, i128>, remaining_vec : &mut  Vec::<i128>, costs_vec :  &Vec::<i128> ){
 
         let mut task : i128 ;
         let mut task_node_index = NodeIndex::new(0 as usize);
-        self.complete_task(graph, remaining_vec, task_node_index);
+        self.complete_task(graph, remaining_vec, costs_vec, task_node_index);
 
         while graph.node_count() > 0 {
             task = match self.choose_task() {
@@ -87,15 +88,15 @@ impl Workers{
             };
             print!(" -> {}\n",task);    
             task_node_index = NodeIndex::new(task as usize);
-            self.complete_task(graph, remaining_vec, task_node_index);
+            self.complete_task(graph, remaining_vec,costs_vec, task_node_index);
         }
     }
-    pub fn print_remaining_vec(&self,remaining_vec : &Vec::<i128>) {
-        println!(" Remainig: :");
-        for i in remaining_vec {
-            print!(" {}",remaining_vec[*i as usize]);
+
+    pub fn print_remaining_vec(&self, remaining_vec: &Vec<i128>) {
+        println!(" Remaining:");
+        for (index, value) in remaining_vec.iter().enumerate() {
+            println!(" {}: {}", index, value);
         }
-        print!("\n");
     }
     
 }

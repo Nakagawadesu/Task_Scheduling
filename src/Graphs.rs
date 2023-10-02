@@ -83,6 +83,7 @@ impl Utils {
         } else {
             eprintln!("Error opening the file");
         }
+        self.update_edge_weights();
     }
 
     pub fn update_edge_weights(&mut self) {
