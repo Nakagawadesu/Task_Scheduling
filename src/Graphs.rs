@@ -1,12 +1,16 @@
 use petgraph::stable_graph::{StableDiGraph, NodeIndex, EdgeIndex};
-use petgraph::EdgeType;
 use std::fs;
 use std::io::{BufRead, BufReader};
+use petgraph::Direction;
+
 
 pub(crate) struct Utils {
     pub(crate) di_graph: StableDiGraph<i128, i128>,
     pub(crate) remaining_vec: Vec<i128>,
-    pub(crate) costs_vec: Vec<i128>
+    pub(crate) unlocks_vec: Vec<i128>,
+    pub(crate) costs_vec: Vec<i128>,
+    pub(crate) max_cost: i128,
+    pub(crate) max_unlocks: i128
 }
 
 impl Utils {
@@ -14,11 +18,14 @@ impl Utils {
         Self {
             di_graph: StableDiGraph::<i128, i128>::new(),
             remaining_vec: Vec::new(),
+            unlocks_vec: Vec::new(),
             costs_vec: Vec::new(),
+            max_cost: 0 ,
+            max_unlocks: 0
         }
     }
     pub fn show_content(file_path: &str) {
-        println!("In file {}", file_path);
+        //println!("In file {}", file_path);
 
         let contents =
             fs::read_to_string(file_path).expect("Should have been able to read the file");
@@ -31,7 +38,6 @@ impl Utils {
             let reader = BufReader::new(file);
             let mut count: i128 = 0;
             let mut task: i128 = 0;
-            let mut degree: i128 = 0;
             let mut line_count: i128 = 0;
             let mut n_tasks: i128 = 0;
             for line in reader.lines() {
@@ -51,6 +57,7 @@ impl Utils {
                         if line_count == 0 {
                             self.remaining_vec = vec![0; n_tasks as usize];
                             self.costs_vec = vec![0; n_tasks as usize];
+                            self.unlocks_vec = vec![0; n_tasks as usize];
                             for j in 0..n_tasks {
                                 self.di_graph.add_node(j);
                             }
@@ -65,7 +72,6 @@ impl Utils {
                         count += 1;
                     } else if count == 2 {
                         //println!("Degree: {}", i);
-                        degree = *i;
                         count += 1;
                     } else {
                         //println!(" {}", i);
@@ -83,15 +89,21 @@ impl Utils {
         } else {
             eprintln!("Error opening the file");
         }
-        self.update_edge_weights();
+        self.update_weights_unlocks();
     }
 
-    pub fn update_edge_weights(&mut self) {
+    pub fn update_weights_unlocks(&mut self) {
         let edge_indices: Vec<EdgeIndex> = self.di_graph.edge_indices().collect();
 
         for  edge in edge_indices {
             let (source, target) = self.di_graph.edge_endpoints(edge).unwrap();
+
             let target_index = target.index();
+
+            let outgoing_edges =  self.di_graph.neighbors_directed(source, Direction::Outgoing).count();
+
+            self.unlocks_vec[source.index()as usize] = outgoing_edges as i128;
+
             if let Some(&weight) = self.costs_vec.get(target_index) {
                 self.di_graph.update_edge(source, target, weight);
             }
@@ -116,18 +128,38 @@ impl Utils {
         }
     }
     pub fn print_vecs(&self, n_tasks: usize) {
-        println!("Task: \t Remainig: \t Cost :");
+        println!("Task: \t Remainig: \t Cost : \t Unlocks :");
         for i in 0..n_tasks {
             println!(
-                "{}        \t {}       \t{}",
-                i, self.remaining_vec[i], self.costs_vec[i]
+                "{}        \t {}       \t{}       \t{}",
+                i, self.remaining_vec[i], self.costs_vec[i], self.unlocks_vec[i]
             );
+        
         }
+
+        println!("max_cost :{} , max_unlocks :{}\n",self.max_cost, self.max_unlocks);
     }
     pub fn print_remaining_vec(&self, n_tasks: usize) {
         println!(" Remainig: :");
         for i in 0..n_tasks {
             println!(" {}",self.remaining_vec[i]);
         }
+    }
+    pub fn find_max_cost_unlocks(&mut self, n_tasks : usize) {
+        let mut max_cost : i128 = -1;
+        let mut max_unlocks : i128 = -1;
+        for i in 0..n_tasks {
+            if max_cost < self.costs_vec[i ]{
+                max_cost = self.costs_vec[i];
+            }
+            if max_unlocks < self.unlocks_vec[i]{
+                if i > 0{
+                    max_unlocks = self.unlocks_vec[i];
+                }
+                    
+            }
+        }
+        self.max_cost = max_cost;
+        self.max_unlocks = max_unlocks;
     }
 }
