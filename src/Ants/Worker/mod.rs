@@ -13,6 +13,12 @@ impl WorkerAnt {
     }
     //manusear ocupaçao
     pub fn start_task(&mut self ,elapsed : &i128 , cost : &i128  ){
-        self.free_at = elapsed + cost ;
+        if *cost == 0
+        {
+            self.free_at = -1 ;
+        }else{
+            self.free_at = elapsed + cost ;
+        }
+        //println!("free at : {}",self.free_at);
     }
 }
