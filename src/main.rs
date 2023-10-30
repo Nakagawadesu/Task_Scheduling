@@ -1,5 +1,6 @@
 mod Graphs;
 mod Ants;
+mod Aco;
 
 use petgraph::graph::{ NodeIndex};
 use std::time::{Instant, Duration};
@@ -14,13 +15,17 @@ fn main() {
     //graph.print_graph();
     graph.find_max_cost_unlocks(n_tasks);
     //graph.print_vecs(n_tasks);
+    
     let mut colony = Ants::Army::Colony::new(n_tasks ,0.1);
     
     let mut worker = Ants::ManagerAnt::new(0.2);
     let start_time = Instant::now();
 
-    let sequence = worker.greedy_ants(&mut graph ,n_ants,&mut colony);
-    
+    let sequence = worker.work(&mut graph ,n_ants,&mut colony);
+    /*
+    let mut aco = Aco::new(n_tasks, 51);
+    aco.optimal()
+    */
     let end_time = Instant::now();
     // Calculate the elapsed time
     let elapsed_time = end_time.duration_since(start_time);

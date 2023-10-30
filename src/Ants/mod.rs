@@ -16,16 +16,16 @@ use Army::Colony;
 pub(crate) struct ManagerAnt {
     pub(crate) time_spent: i128,
     pub(crate) task_heap: BinaryHeap<TaskTuple>,
-    pub(crate) letragrega: f64,//falar com o marco
+    pub(crate) w: f64,//falar com o marco
     
 }
 
 impl ManagerAnt {
-    pub fn new(a: f64 ) -> Self {
+    pub fn new(wisdom: f64 ) -> Self {
         Self {
             time_spent: 0,
             task_heap: BinaryHeap::new(),
-            letragrega : a
+            w : wisdom
         }
     }
     pub fn reduce_neighbors(
@@ -59,12 +59,12 @@ impl ManagerAnt {
                 let index = inserted.node.index();
                 let cost_ratio = (1.0 -(graph.costs_vec[index] as f64 / graph.max_cost as f64 )) as f64;
                 let unlocks_ratio = (graph.unlocks_vec[index] as f64/ graph.max_unlocks as f64) as f64;
-                inserted.priority = self.letragrega * (cost_ratio + unlocks_ratio )+ random_float + (self.letragrega/5.0)* colony.pherohormones[index];
+                inserted.priority = self.w * (cost_ratio + unlocks_ratio )+ random_float + (self.w/5.0)* colony.pherohormones[index];
                 
                 println!("inserted : {} ,priority {}, parameters  {}, randomness {}, pherohormones {}",
                  index,
                  inserted.priority,
-                 self.letragrega * (cost_ratio + unlocks_ratio) ,
+                 self.w * (cost_ratio + unlocks_ratio) ,
                  random_float,
                  colony.pherohormones[index]
                 );
@@ -121,7 +121,7 @@ impl ManagerAnt {
     }
     
 
-    pub fn greedy_ants(
+    pub fn work(
         &mut self , 
         graph : &mut  Utils,
         n_workers: i128,
