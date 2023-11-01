@@ -16,7 +16,7 @@ impl Aco{
     }
     pub fn optimal(&mut self,graph : &mut Utils, n_tasks : i128,n_ants : i128,manager_wisdom : f64 ,  evaporation : f64,  ){
        
-        let mut colony = Ants::Army::Colony::new(n_tasks ,evaporation);
+        let mut colony = Ants::Army::Colony::new(n_tasks as usize ,evaporation);
         for i in 0..self.colonies{
             
             let mut worker = Ants::ManagerAnt::new(manager_wisdom);

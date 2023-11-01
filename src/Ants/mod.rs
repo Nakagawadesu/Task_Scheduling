@@ -31,14 +31,14 @@ impl ManagerAnt {
     pub fn reduce_neighbors(
         &mut self ,
         graph : &mut  Utils,
+        clone : &mut StableDiGraph<i128,i128>,
         task: &TaskTuple,
         colony : &Colony
         ){
 
         let mut neighbors : Vec<i128> = Vec::new() ;
-        let di_graph = &graph.di_graph;
-        for neighbor in di_graph.neighbors_directed( task.node, Direction::Outgoing) {
-            let neighbor_index = di_graph[neighbor];
+        for neighbor in clone.neighbors_directed( task.node, Direction::Outgoing) {
+            let neighbor_index = clone[neighbor];
             neighbors.push(neighbor_index);
         }
         //println!("task : {} , neghbors :\n",index);
@@ -100,6 +100,7 @@ impl ManagerAnt {
     pub fn start_task(
         &mut self,
         graph : &mut  Utils ,
+        clone : &mut StableDiGraph<i128,i128>,
         task: &TaskTuple, 
         sequence : &mut Vec<i128>,
         workers: &mut Vec<WorkerAnt>   ,
@@ -108,9 +109,9 @@ impl ManagerAnt {
         iteration : i128
     ){
 
-        self.reduce_neighbors(graph,task,&colony);
-        self.remove_edges(&mut graph.di_graph, task.node);
-        graph.di_graph.remove_node(task.node);
+        self.reduce_neighbors(graph,clone,task,&colony);
+        self.remove_edges(clone, task.node);
+        clone.remove_node(task.node);
         sequence.push(task.node.index().try_into().unwrap());
         workers[worker].start_task(
             &self.time_spent , 
@@ -132,11 +133,13 @@ impl ManagerAnt {
         let mut task = TaskTuple::new(NodeIndex::new(0),0.0);
         let mut workers: Vec<WorkerAnt> = vec![WorkerAnt::new(-1); n_workers as usize];
         let mut counter : i128 = 0;
+        
+        let mut clone = graph.di_graph.clone();
 
-        self.start_task(graph, &task, &mut sequence,&mut workers, 0 as usize,colony, counter);
+        self.start_task(graph,&mut clone, &task, &mut sequence,&mut workers, 0 as usize,colony, counter);
 
 
-        while graph.di_graph.node_count() > 0 {
+        while clone.node_count() > 0 {
            for i in 0..n_workers{
             //println!("i : {}",i as i128);
                 if workers[i as usize].free_at < self.time_spent {
@@ -145,7 +148,7 @@ impl ManagerAnt {
                         Some(task) => task,
                         None => break
                     };
-                    self.start_task(graph, &task,&mut sequence,&mut workers ,i as usize, colony,counter);
+                    self.start_task(graph,&mut clone, &task,&mut sequence,&mut workers ,i as usize, colony,counter);
                     println!("worker :  {} , started at : {} , finishes at : {}, task: {}",
                      i ,
                      self.time_spent ,
