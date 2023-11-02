@@ -17,15 +17,18 @@ pub(crate) struct ManagerAnt {
     pub(crate) time_spent: i128,
     pub(crate) task_heap: BinaryHeap<TaskTuple>,
     pub(crate) w: f64,//falar com o marco
+    pub(crate) remaining_vec: Vec<i128> 
     
 }
 
 impl ManagerAnt {
-    pub fn new(wisdom: f64 ) -> Self {
+    pub fn new(wisdom: f64, vec : &Vec<i128> ) -> Self {
         Self {
             time_spent: 0,
             task_heap: BinaryHeap::new(),
-            w : wisdom
+            w : wisdom,
+            remaining_vec: vec.clone()
+
         }
     }
     pub fn reduce_neighbors(
@@ -44,7 +47,7 @@ impl ManagerAnt {
         //println!("task : {} , neghbors :\n",index);
 
         
-        let remaining_vec = &mut graph.remaining_vec;
+        let remaining_vec = &mut self.remaining_vec;
         for i in neighbors{
             remaining_vec[i as usize] = remaining_vec[i as usize] -1;
             //println!("reduced {}",i);
@@ -77,11 +80,12 @@ impl ManagerAnt {
         
     }
 
-    fn choose_task(&mut self, task : &TaskTuple ) -> Option<TaskTuple>{
+    fn choose_task(&mut self ) -> Option<TaskTuple>{
         if let Some(task) = self.task_heap.pop() {
             println!("{} chosen \n", task.node.index());
             Some(task)
         } else {
+            //println!("empty binary heap \n");
             None
         }
     }
@@ -97,7 +101,7 @@ impl ManagerAnt {
         }
     }
 
-    pub fn start_task(
+    pub fn complete_task(
         &mut self,
         graph : &mut  Utils ,
         clone : &mut StableDiGraph<i128,i128>,
@@ -113,10 +117,6 @@ impl ManagerAnt {
         self.remove_edges(clone, task.node);
         clone.remove_node(task.node);
         sequence.push(task.node.index().try_into().unwrap());
-        workers[worker].start_task(
-            &self.time_spent , 
-            &graph.costs_vec[task.node.index() as usize]
-        );
         colony.add_pherohormones(iteration , task.node.index() );
     
     }
@@ -124,41 +124,59 @@ impl ManagerAnt {
 
     pub fn work(
         &mut self , 
-        graph : &mut  Utils,
+        graph : &mut Utils,
         n_workers: i128,
         colony : &mut Colony
         )->Vec<i128>{
 
         let mut sequence :Vec<i128> = Vec::new();    
-        let mut task = TaskTuple::new(NodeIndex::new(0),0.0);
+        let mut task_tuple = TaskTuple::new(NodeIndex::new(0),0.0);
         let mut workers: Vec<WorkerAnt> = vec![WorkerAnt::new(-1); n_workers as usize];
         let mut counter : i128 = 0;
         
         let mut clone = graph.di_graph.clone();
 
-        self.start_task(graph,&mut clone, &task, &mut sequence,&mut workers, 0 as usize,colony, counter);
+        self.complete_task(graph,&mut clone, &task_tuple, &mut sequence,&mut workers, 0 as usize,colony, counter);
 
 
         while clone.node_count() > 0 {
            for i in 0..n_workers{
-            //println!("i : {}",i as i128);
-                if workers[i as usize].free_at < self.time_spent {
+                //println!("n_worker : {} , current worker : {} ",n_workers, i);
+                let index = i as usize;
+
+                //println!("worker: {}, spent: {} , ",i as i128,self.time_spent);
+                if workers[index].free_at <= self.time_spent {
                     counter += 1;
-                    task = match self.choose_task(&task) {
-                        Some(task) => task,
-                        None => break
-                    };
-                    self.start_task(graph,&mut clone, &task,&mut sequence,&mut workers ,i as usize, colony,counter);
-                    println!("worker :  {} , started at : {} , finishes at : {}, task: {}",
-                     i ,
-                     self.time_spent ,
-                     workers[i as usize].free_at,
-                     task.node.index() as i128 
-                    );
+                    //liberação do worker
+                    if workers[index].free_at <= self.time_spent && workers[index].current_task != -1{
+                        task_tuple = TaskTuple::new(NodeIndex::new(workers[index].current_task as usize),0.0);
+                        println!("finished: {}",workers[index].current_task );
+                        self.complete_task(graph, &mut clone, &task_tuple, &mut sequence, &mut workers, index, colony, counter);
+                        workers[index].current_task = -1;
+                       
+                    }
+                    //se liberado botar para trabalhar
+                    if  workers[index].current_task == -1 {
+                        if let Some(task) = self.choose_task() {
+                            workers[index].start_task(
+                                &self.time_spent , 
+                                &(task.node.index() as i128),
+                                &graph.costs_vec[task.node.index() as usize]
+                            );
+                            println!("worker :  {} , started at : {} , finishes at : {}, task: {}",
+                            i,
+                            self.time_spent,
+                            workers[index].free_at,
+                            workers[index].current_task,
+                   );
+                    } else {
+                            println!("worker {} waiting,  current time spent {}", i, self.time_spent);
+                        }
+                    }
+                    
                 }
            } 
-            
-           
+           //print!("current time : {}",self.time_spent);
            self.time_spent += 1;
         }
         //grafo vazio poré podem ter tarefas ainda sendo executadas

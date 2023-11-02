@@ -14,17 +14,27 @@ impl Aco{
             optimal_time: i128::MAX
         }
     }
-    pub fn optimal(&mut self,graph : &mut Utils, n_tasks : i128,n_ants : i128,manager_wisdom : f64 ,  evaporation : f64,  ){
+    pub fn optimal(
+        &mut self,
+        graph : &mut Utils, 
+        n_tasks : usize,
+        n_ants : i128,
+        manager_wisdom : f64 ,  
+        evaporation : f64,  
+    ){
        
-        let mut colony = Ants::Army::Colony::new(n_tasks as usize ,evaporation);
+        let mut colony = Ants::Army::Colony::new(n_tasks  ,evaporation);
         for i in 0..self.colonies{
-            
-            let mut worker = Ants::ManagerAnt::new(manager_wisdom);
-            let sequence = worker.work(&mut graph ,n_ants,&mut colony);
+
+            let mut worker = Ants::ManagerAnt::new(manager_wisdom,&graph.remaining_vec);
+            let sequence = worker.work( graph ,n_ants,&mut colony);
+            println!("iteration : {}",i);
             if worker.time_spent < self.optimal_time{
                 self.optimal_time = worker.time_spent;
                 self.optimal_schedule = sequence;
             }
+            colony.print_pherohormones_vec();
+            //graph.print_graph()
         }
     }
 }
