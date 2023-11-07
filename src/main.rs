@@ -5,8 +5,10 @@ mod Aco;
 use petgraph::graph::{ NodeIndex};
 use std::time::{Instant, Duration};
 fn main() {
+    let file_path = "/home/matheus/Projects/Task_Scheduling/Task_Scheduling/Data_sets/100/";
+    let graph_name = "rand0161.stg";
     let mut graph = Graphs::Utils::new();
-    graph.initialize_graph("/home/matheus/Projects/Task_Scheduling/Task_Scheduling/Data_sets/100/rand0161.stg");
+    graph.initialize_graph(file_path,graph_name);
     let n_tasks = graph.di_graph.node_count();
     graph.find_max_cost_unlocks(n_tasks);
 
@@ -45,7 +47,13 @@ fn main() {
     aco.optimal_time, 
     elapsed_micros
     );
-    
+    graph.write_results_to_file(
+        "/home/matheus/Projects/Task_Scheduling/Task_Scheduling/Results/",
+        &graph_name ,
+        &aco.optimal_schedule , 
+        &aco.optimal_time,
+        &n_ants
+    );
 
 
 }

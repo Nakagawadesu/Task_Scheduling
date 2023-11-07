@@ -1,8 +1,10 @@
-use petgraph::stable_graph::{StableDiGraph, NodeIndex, EdgeIndex};
-use std::fs;
-use std::io::{BufRead, BufReader};
-use petgraph::Direction;
 
+use std::fs;
+use std::io::{BufRead, BufReader,Write, Error};
+use std::fs::OpenOptions;
+
+use petgraph::Direction;
+use petgraph::stable_graph::{StableDiGraph, NodeIndex, EdgeIndex};
 
 pub(crate) struct Utils {
     pub(crate) di_graph: StableDiGraph<i128, i128>,
@@ -33,8 +35,9 @@ impl Utils {
         println!("With text:\n{}", contents);
     }
 
-    pub fn initialize_graph(&mut self, file_path: &str) {
-        if let Ok(file) = fs::File::open(file_path) {
+    pub fn initialize_graph(&mut self, file_path: &str, task_graph : &str) {
+        let path = format!("{}{}", file_path, task_graph);
+        if let Ok(file) = fs::File::open(path) {
             let reader = BufReader::new(file);
             let mut count: i128 = 0;
             let mut task: i128 = 0;
@@ -74,7 +77,7 @@ impl Utils {
                         //println!("Degree: {}", i);
                         count += 1;
                     } else {
-                        //println!(" {}", i);
+                        //println!(" {}", i);use std::io::Write
                         self.remaining_vec[task as usize] += 1;
                         self.di_graph.add_edge(
                             NodeIndex::new(*i as usize),
@@ -161,5 +164,40 @@ impl Utils {
         }
         self.max_cost = max_cost;
         self.max_unlocks = max_unlocks;
+    }
+    
+   
+
+    pub fn write_results_to_file(
+        &self,
+        file_path: &str,
+        graph_name: &str,
+        sequence: &Vec<i128>,
+        time_spent: &i128,
+        n_ants: &i128,
+    ) -> Result<(), Error> {
+        let size = sequence.len();
+        let path = format!("{}/{}{}", file_path, size, graph_name);
+    
+        let time_str = time_spent.to_string();
+        let ants = n_ants.to_string();
+    
+        let content = format!(
+            "\nnumber of processors: {}, number of tasks: {}\ntime spent: {}",
+            ants, size, time_str
+        );
+    
+        let mut f = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true) 
+            .append(true)
+            .create(true)
+            .open(path)
+            .unwrap();
+    
+        f.write_all(content.as_bytes())?;
+        f.flush()?;
+    
+        Ok(())
     }
 }
