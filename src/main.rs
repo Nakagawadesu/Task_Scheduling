@@ -5,26 +5,27 @@ mod Aco;
 use petgraph::graph::{ NodeIndex};
 use std::time::{Instant, Duration};
 fn main() {
-    let file_path = "/home/matheus/Projects/Task_Scheduling/Task_Scheduling/Data_sets/100/";
-    let graph_name = "rand0161.stg";
+    let file_path = "/home/matheus/Projects/Task_Scheduling/Task_Scheduling/Data_sets/50/";
+    let graph_name = "atest2.stg";
     let mut graph = Graphs::Utils::new();
-    graph.initialize_graph(file_path,graph_name);
+    let  (pherohormones_init ,mut visibility_graph) = graph.initialize_graphs(file_path,graph_name);
     let n_tasks = graph.di_graph.node_count();
     graph.find_max_cost_unlocks(n_tasks);
-
+    graph.update_visibility(&mut visibility_graph);
+    //graph.print_visibility_or_pherohormones(&pherohormones_init);
     let n_ants = 4;
 
     let start_time = Instant::now();
-/*
-    let mut colony = Ants::Army::Colony::new(n_tasks ,0.1);
+
+    let mut colony = Ants::Army::Colony::new(n_tasks , pherohormones_init, visibility_graph, 0.01);
     let mut worker = Ants::ManagerAnt::new(0.2, &graph.remaining_vec);
-    let sequence = worker.work(&mut graph ,n_ants,&mut colony);
-    */
+    let sequence = worker.work(&mut graph ,n_ants,&mut colony,n_tasks);
     
+    /*
     let mut aco = Aco::Aco::new(n_tasks, 100);
     
     aco.optimal(&mut graph, n_tasks, n_ants , 0.2, 0.1);//graph,n_tasks, n_processors,wisdom,evaporation
-    
+    */
     let end_time = Instant::now();
     // Calculate the elapsed time
     let elapsed_time = end_time.duration_since(start_time);
@@ -36,24 +37,25 @@ fn main() {
 
     println!(" Sequence:");
         for i in 0..n_tasks {
-            //print!(" {}",sequence[i]);
-            print!(" {}",aco.optimal_schedule[i]);
+            print!(" {}",sequence[i]);
+            //print!(" {}",aco.optimal_schedule[i]);
         }
     println!(" ");    
     println!(
         "{} Ants spent : {} , computer spent {} micro seconds",
     n_ants,
-    //worker.time_spent ,
-    aco.optimal_time, 
+    worker.time_spent ,
+    //aco.optimal_time, 
     elapsed_micros
     );
+    /*
     graph.write_results_to_file(
         "/home/matheus/Projects/Task_Scheduling/Task_Scheduling/Results/",
         &graph_name ,
         &aco.optimal_schedule , 
         &aco.optimal_time,
         &n_ants
-    );
+    );*/
 
 
 }

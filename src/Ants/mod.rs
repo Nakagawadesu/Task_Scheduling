@@ -31,6 +31,17 @@ impl ManagerAnt {
 
         }
     }
+    pub fn calculate_priority(
+
+    ){
+        // s = source , t = target
+        //Priority(s,t) = ( phe(s,t) ^a * vis(s,t) ^b ) / ( Sum(phe(s,t))^a * Sum( vis(s,t)^b ) 
+        // + visibility 
+        // + pher   
+        
+        let mut rng = rand::thread_rng();
+      
+    }
     pub fn reduce_neighbors(
         &mut self ,
         graph : &mut  Utils,
@@ -54,23 +65,19 @@ impl ManagerAnt {
             //self.print_remaining_vec(&remaining_vec);
             if remaining_vec[i as usize] == 0 {
                 let mut inserted : TaskTuple = TaskTuple::new(NodeIndex::new(i as usize) , 0.0);
-                
-                //randomness
-                let mut rng = rand::thread_rng();
-                let random_float: f64 = rng.gen_range(0.0..0.7);
+                /*
                 //calculate params
                 let index = inserted.node.index();
-                let cost_ratio = (1.0 -(graph.costs_vec[index] as f64 / graph.max_cost as f64 )) as f64;
-                let unlocks_ratio = (graph.unlocks_vec[index] as f64/ graph.max_unlocks as f64) as f64;
-                inserted.priority = self.w * (cost_ratio + unlocks_ratio )+ random_float + (self.w/5.0)* colony.pherohormones[index];
                 
-                println!("inserted : {} ,priority {}, parameters  {}, randomness {}, pherohormones {}",
+                inserted.priority = colony.visibility.edge_weight(index) + pher ;
+                
+                println!("inserted : {} ,priority {} , visibility  {}, randomness {}, pherohormones {}",
                  index,
                  inserted.priority,
-                 self.w * (cost_ratio + unlocks_ratio) ,
+                 colony.visibility.edge_weight(inserted.node) ,
                  random_float,
-                 colony.pherohormones[index]
-                );
+                 colony.pherohormones.edge_weight(inserted.node)
+                );*/
                 self.task_heap.push(inserted);
                // println!(" {} inserted ",i);
                 
@@ -110,14 +117,20 @@ impl ManagerAnt {
         workers: &mut Vec<WorkerAnt>   ,
         worker : usize,
         colony : &mut Colony,
-        iteration : i128
+        iteration : i128,
+        n_tasks : usize
     ){
 
         self.reduce_neighbors(graph,clone,task,&colony);
         self.remove_edges(clone, task.node);
         clone.remove_node(task.node);
         sequence.push(task.node.index().try_into().unwrap());
-        colony.add_pherohormones(iteration , task.node.index() );
+        colony.add_pherohormones(
+            iteration ,
+            workers[worker].current_task as usize ,
+            task.node.index(),
+            n_tasks
+        );
     
     }
     
@@ -126,7 +139,8 @@ impl ManagerAnt {
         &mut self , 
         graph : &mut Utils,
         n_workers: i128,
-        colony : &mut Colony
+        colony : &mut Colony,
+        n_tasks : usize
         )->Vec<i128>{
 
         let mut sequence :Vec<i128> = Vec::new();    
@@ -136,7 +150,17 @@ impl ManagerAnt {
         
         let mut clone = graph.di_graph.clone();
 
-        self.complete_task(graph,&mut clone, &task_tuple, &mut sequence,&mut workers, 0 as usize,colony, counter);
+        self.complete_task(
+            graph,
+            &mut clone, 
+            &task_tuple, 
+            &mut sequence,
+            &mut workers, 
+            0 as usize,
+            colony, 
+            counter,
+            n_tasks
+        );
 
 
         while clone.node_count() > 0 {
@@ -151,7 +175,17 @@ impl ManagerAnt {
                     if workers[index].free_at <= self.time_spent && workers[index].current_task != -1{
                         task_tuple = TaskTuple::new(NodeIndex::new(workers[index].current_task as usize),0.0);
                         println!("finished: {}",workers[index].current_task );
-                        self.complete_task(graph, &mut clone, &task_tuple, &mut sequence, &mut workers, index, colony, counter);
+                        self.complete_task(
+                            graph,
+                            &mut clone, 
+                            &task_tuple, 
+                            &mut sequence, 
+                            &mut workers, 
+                            index, 
+                            colony, 
+                            counter,
+                            n_tasks
+                        );
                         workers[index].current_task = -1;
                        
                     }

@@ -35,14 +35,27 @@ impl Utils {
         println!("With text:\n{}", contents);
     }
 
-    pub fn initialize_graph(&mut self, file_path: &str, task_graph : &str) {
+    pub fn initialize_graphs(
+        &mut self, 
+        file_path: &str,
+         task_graph : &str
+        )->(
+            StableDiGraph::<i128, f64> ,
+            StableDiGraph::<i128, f64> ,
+        ) {
+
         let path = format!("{}{}", file_path, task_graph);
+        let mut pherohormones_init = StableDiGraph::<i128, f64>::new();
+        let mut visibility_graph = StableDiGraph::<i128, f64>::new();
         if let Ok(file) = fs::File::open(path) {
+
+            
             let reader = BufReader::new(file);
             let mut count: i128 = 0;
             let mut task: i128 = 0;
             let mut line_count: i128 = 0;
             let mut n_tasks: i128 = 0;
+
             for line in reader.lines() {
                 let line = line.expect("Failed to read line from file");
                 //println!("{}", line);
@@ -63,6 +76,8 @@ impl Utils {
                             self.unlocks_vec = vec![0; n_tasks as usize];
                             for j in 0..n_tasks {
                                 self.di_graph.add_node(j);
+                                pherohormones_init.add_node(j);
+                                visibility_graph.add_node(j);
                             }
                         } else {
                             //println!("Task: {}", i);
@@ -84,6 +99,11 @@ impl Utils {
                             NodeIndex::new(task as usize),
                             0,
                         );
+                        visibility_graph.add_edge(
+                            NodeIndex::new(*i as usize),
+                            NodeIndex::new(task as usize),
+                            0.0,
+                        );
                     }
                 }
                 count = 0;
@@ -93,6 +113,8 @@ impl Utils {
             eprintln!("Error opening the file");
         }
         self.update_weights_unlocks();
+        (pherohormones_init, visibility_graph)
+
     }
 
     pub fn update_weights_unlocks(&mut self) {
@@ -112,6 +134,36 @@ impl Utils {
             }
         }
     }
+    pub fn update_visibility(&mut self, visibility_graph : &mut  StableDiGraph::<i128, f64>) {
+
+        let edge_indices: Vec<EdgeIndex> = visibility_graph.edge_indices().collect();
+
+        for  edge in edge_indices {
+            let (source, target) = visibility_graph.edge_endpoints(edge).unwrap();
+
+            let target_index = target.index();
+
+            let outgoing_edges =  visibility_graph.neighbors_directed(source, Direction::Outgoing).count();
+
+            let cost_ratio = if self.max_cost != 0 {
+                1.0 - (self.costs_vec[target_index] as f64 / self.max_cost as f64)
+            } else {
+                0.0 
+            };
+    
+            let unlocks_ratio = if self.max_unlocks != 0 {
+                self.unlocks_vec[target_index] as f64 / self.max_unlocks as f64
+            } else {
+                
+                0.0 
+            };let visibility = (cost_ratio + unlocks_ratio)as f64;
+            println!("from {} to {} visibily is : {}",source.index(), target_index, visibility as f64);
+
+            visibility_graph.update_edge(source, target, visibility);
+            
+        }
+
+    }
     pub fn print_graph(&self) {
         println!("Nodes in the graph:");
         for node in self.di_graph.node_indices() {
@@ -122,6 +174,24 @@ impl Utils {
         for edge in self.di_graph.edge_indices() {
             let (source, target) = self.di_graph.edge_endpoints(edge).unwrap();
             let weight = self.di_graph[edge];
+            println!(
+                "Edge from {} to {} with weight {}",
+                source.index(),
+                target.index(),
+                weight
+            );
+        }
+    }
+    pub fn print_visibility_or_pherohormones(&self, graph :& StableDiGraph::<i128, f64>) {
+        println!("Nodes in the graph:");
+        for node in graph.node_indices() {
+            println!("Node {}: {:?}", node.index(), graph[node]);
+        }
+
+        println!("Edges in the graph:");
+        for edge in graph.edge_indices() {
+            let (source, target) = graph.edge_endpoints(edge).unwrap();
+            let weight = graph[edge];
             println!(
                 "Edge from {} to {} with weight {}",
                 source.index(),
