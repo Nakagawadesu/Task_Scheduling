@@ -94,7 +94,47 @@ impl Utils {
         }
         self.update_weights_unlocks();
     }
+    pub fn update_visibility(&self , n_tasks : usize) -> Vec<f64> {
+                let mut visibility : Vec<f64> = vec![0.0 ;n_tasks ];
 
+                let mut max = 0.0;
+
+                for i in 0..n_tasks{
+                    let cost_ratio = (1.0 -(self.costs_vec[i] as f64 / self.max_cost as f64 )) as f64;
+                    let unlocks_ratio = (self.unlocks_vec[i] as f64/ self.max_unlocks as f64) as f64;
+    
+                    visibility[i] =  cost_ratio + unlocks_ratio;
+                    //findmax
+                    if max < visibility[i]{
+                        max = visibility[i];
+                    }
+                }
+                //normalization
+                for i in 0..n_tasks{
+                   visibility[i] = visibility[i]/max ;
+                }
+               visibility
+    }
+   
+    pub fn find_max_cost_unlocks(&mut self, n_tasks : usize) {
+        let mut max_cost : i128 = -1;
+        let mut max_unlocks : i128 = -1;
+        for i in 0..n_tasks {
+            if max_cost < self.costs_vec[i ]{
+                max_cost = self.costs_vec[i];
+            }
+            if max_unlocks < self.unlocks_vec[i]{
+                if i > 0{
+                    max_unlocks = self.unlocks_vec[i];
+                }
+                    
+            }
+        }
+        self.max_cost = max_cost;
+        self.max_unlocks = max_unlocks;
+    }
+    
+   
     pub fn update_weights_unlocks(&mut self) {
         let edge_indices: Vec<EdgeIndex> = self.di_graph.edge_indices().collect();
 
@@ -112,6 +152,43 @@ impl Utils {
             }
         }
     }
+
+    pub fn write_results_to_file(
+        &self,
+        file_path: &str,
+        graph_name: &str,
+        sequence: &Vec<i128>,
+        time_spent: &i128,
+        n_ants: &i128,
+    ) -> Result<(), Error> {
+        let size = sequence.len();
+        let path = format!("{}/{}{}", file_path, size, graph_name);
+    
+        let time_str = time_spent.to_string();
+        let ants = n_ants.to_string();
+    
+        let content = format!(
+            "\nnumber of processors: {}, number of tasks: {}\ntime spent: {}",
+            ants, size, time_str
+        );
+    
+        let mut f = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true) 
+            .append(true)
+            .create(true)
+            .open(path)
+            .unwrap();
+    
+        f.write_all(content.as_bytes())?;
+        f.flush()?;
+    
+        Ok(())
+    }
+
+    //********//
+    // PRINTS //
+    //********//
     pub fn print_graph(&self) {
         println!("Nodes in the graph:");
         for node in self.di_graph.node_indices() {
@@ -148,56 +225,9 @@ impl Utils {
             println!(" {}",self.remaining_vec[i]);
         }
     }
-    pub fn find_max_cost_unlocks(&mut self, n_tasks : usize) {
-        let mut max_cost : i128 = -1;
-        let mut max_unlocks : i128 = -1;
-        for i in 0..n_tasks {
-            if max_cost < self.costs_vec[i ]{
-                max_cost = self.costs_vec[i];
-            }
-            if max_unlocks < self.unlocks_vec[i]{
-                if i > 0{
-                    max_unlocks = self.unlocks_vec[i];
-                }
-                    
-            }
+    pub fn print_visibility(&self , n_tasks : usize, visibility : &Vec<f64>) {
+        for i in 0..n_tasks{
+            println!("task {} visibility {}" ,i ,visibility[i]);
         }
-        self.max_cost = max_cost;
-        self.max_unlocks = max_unlocks;
-    }
-    
-   
-
-    pub fn write_results_to_file(
-        &self,
-        file_path: &str,
-        graph_name: &str,
-        sequence: &Vec<i128>,
-        time_spent: &i128,
-        n_ants: &i128,
-    ) -> Result<(), Error> {
-        let size = sequence.len();
-        let path = format!("{}/{}{}", file_path, size, graph_name);
-    
-        let time_str = time_spent.to_string();
-        let ants = n_ants.to_string();
-    
-        let content = format!(
-            "\nnumber of processors: {}, number of tasks: {}\ntime spent: {}",
-            ants, size, time_str
-        );
-    
-        let mut f = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true) 
-            .append(true)
-            .create(true)
-            .open(path)
-            .unwrap();
-    
-        f.write_all(content.as_bytes())?;
-        f.flush()?;
-    
-        Ok(())
     }
 }

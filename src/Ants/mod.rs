@@ -16,18 +16,18 @@ use Army::Colony;
 pub(crate) struct ManagerAnt {
     pub(crate) time_spent: i128,
     pub(crate) task_heap: BinaryHeap<TaskTuple>,
-    pub(crate) w: f64,//falar com o marco
-    pub(crate) remaining_vec: Vec<i128> 
+    pub(crate) remaining_vec: Vec<i128>,
+    pub(crate) randomness: f64
     
 }
 
 impl ManagerAnt {
-    pub fn new(wisdom: f64, vec : &Vec<i128> ) -> Self {
+    pub fn new( vec : &Vec<i128> , rand : f64) -> Self {
         Self {
             time_spent: 0,
             task_heap: BinaryHeap::new(),
-            w : wisdom,
-            remaining_vec: vec.clone()
+            remaining_vec: vec.clone(),
+            randomness : rand
 
         }
     }
@@ -36,7 +36,9 @@ impl ManagerAnt {
         graph : &mut  Utils,
         clone : &mut StableDiGraph<i128,i128>,
         task: &TaskTuple,
-        colony : &Colony
+        colony : &Colony,
+        generation: i128,
+        colonies : i128
         ){
 
         let mut neighbors : Vec<i128> = Vec::new() ;
@@ -57,19 +59,29 @@ impl ManagerAnt {
                 
                 //randomness
                 let mut rng = rand::thread_rng();
-                let random_float: f64 = rng.gen_range(0.0..0.7);
+                let random_float: f64 = rng.gen_range(0.0..self.randomness);
                 //calculate params
+                //Priority(s,t) = ( phe(t) ^a * vis(t) ^b ) / ( Sum(phe(t))^a * Sum( vis(t)^b ) 
+                // + Rand
                 let index = inserted.node.index();
-                let cost_ratio = (1.0 -(graph.costs_vec[index] as f64 / graph.max_cost as f64 )) as f64;
-                let unlocks_ratio = (graph.unlocks_vec[index] as f64/ graph.max_unlocks as f64) as f64;
-                inserted.priority = self.w * (cost_ratio + unlocks_ratio )+ random_float + (self.w/5.0)* colony.pherohormones[index];
+                let a = colony.a;
+                let w = colony.w;
+                let aco_metrics = ( colony.pherohormones[index].powf(a) * colony.visibility[index].powf(w) ) / (colony.pherohormones_sum.powf(a)* colony.visibility_sum.powf(w) );
+                let mut random_metrics =0.0;
+                if (generation as f64) < 0.3 * (colonies as f64){
+                     random_metrics = random_float  * (-(4*generation/colonies) as f64).exp() ;
+                }   
+                else{
+                     random_metrics = random_float *aco_metrics * (-((6*generation)/colonies) as f64).exp() ; 
+                }   
+                inserted.priority = aco_metrics + random_metrics;
                 
-                println!("inserted : {} ,priority {}, parameters  {}, randomness {}, pherohormones {}",
+                println!("inserted : {} ,priority {}, visibility  {}, randomness {}, pherohormones {}",
                  index,
                  inserted.priority,
-                 self.w * (cost_ratio + unlocks_ratio) ,
-                 random_float,
-                 colony.pherohormones[index]
+                 colony.visibility[index] ,
+                 random_metrics,
+                 aco_metrics
                 );
                 self.task_heap.push(inserted);
                // println!(" {} inserted ",i);
@@ -110,14 +122,17 @@ impl ManagerAnt {
         workers: &mut Vec<WorkerAnt>   ,
         worker : usize,
         colony : &mut Colony,
-        iteration : i128
+        iteration : &mut i128,
+        generation : &mut i128,
+        colonies : &mut i128
     ){
 
-        self.reduce_neighbors(graph,clone,task,&colony);
+        self.reduce_neighbors(graph,clone,task,&colony,*generation , *colonies);
         self.remove_edges(clone, task.node);
         clone.remove_node(task.node);
         sequence.push(task.node.index().try_into().unwrap());
-        colony.add_pherohormones(iteration , task.node.index() );
+        colony.add_pherohormones(  *iteration , task.node.index() );
+        *iteration += 1;
     
     }
     
@@ -126,17 +141,28 @@ impl ManagerAnt {
         &mut self , 
         graph : &mut Utils,
         n_workers: i128,
-        colony : &mut Colony
+        colony : &mut Colony,
+        gen : i128,
+        n_colonies: i128
         )->Vec<i128>{
 
         let mut sequence :Vec<i128> = Vec::new();    
         let mut task_tuple = TaskTuple::new(NodeIndex::new(0),0.0);
         let mut workers: Vec<WorkerAnt> = vec![WorkerAnt::new(-1); n_workers as usize];
-        let mut counter : i128 = 0;
-        
+        let mut iteration : i128 = 0;
+        let mut generation = gen;
+        let mut colonies = n_colonies;
         let mut clone = graph.di_graph.clone();
 
-        self.complete_task(graph,&mut clone, &task_tuple, &mut sequence,&mut workers, 0 as usize,colony, counter);
+        self.complete_task(
+            graph,&mut clone, 
+            &task_tuple, 
+            &mut sequence,
+            &mut workers, 
+            0 as usize,colony,
+            &mut iteration, 
+            &mut generation ,
+            &mut colonies);
 
 
         while clone.node_count() > 0 {
@@ -146,12 +172,22 @@ impl ManagerAnt {
 
                 //println!("worker: {}, spent: {} , ",i as i128,self.time_spent);
                 if workers[index].free_at <= self.time_spent {
-                    counter += 1;
+                    
                     //liberação do worker
                     if workers[index].free_at <= self.time_spent && workers[index].current_task != -1{
                         task_tuple = TaskTuple::new(NodeIndex::new(workers[index].current_task as usize),0.0);
                         println!("finished: {}",workers[index].current_task );
-                        self.complete_task(graph, &mut clone, &task_tuple, &mut sequence, &mut workers, index, colony, counter);
+                        self.complete_task(
+                            graph, 
+                            &mut clone, 
+                            &task_tuple, 
+                            &mut sequence, 
+                            &mut workers, 
+                            index, 
+                            colony,
+                            &mut iteration,
+                            &mut generation, 
+                            &mut colonies);
                         workers[index].current_task = -1;
                        
                     }
@@ -170,7 +206,7 @@ impl ManagerAnt {
                             workers[index].current_task,
                    );
                     } else {
-                            println!("worker {} waiting,  current time spent {}", i, self.time_spent);
+                           // println!("worker {} waiting,  current time spent {}", i, self.time_spent);
                         }
                     }
                     
